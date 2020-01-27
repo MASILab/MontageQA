@@ -13,38 +13,33 @@ score_list = image_path_list.(2);
 image_path_list = image_path_list.(1);
 
 contrast = [0, 40];
+i = 1;
 
 addpath(masimatlab_path);
 
-for i = 1:num_rows
-    path_cell = image_path_list(i);
-    nifti_path = path_cell{1};
-    nifti_header = niftiinfo(nifti_path);
-    nifti_img = niftiread(nifti_header);
-    nifti_img = imrotate3(nifti_img, 270, [0, 0, 1]);
-    % may or may not be necessary to flip the image
-    nifti_img = imrotate3(nifti_img, 180, [0, 1, 0]);
+while i <= num_rows
+    if i > num_rows
+        i = num_rows;
+    elseif i < 1
+            i = 1;
+    else
+            path_cell = image_path_list(i);
+            nifti_path = path_cell{1};
+            nifti_header = niftiinfo(nifti_path);
+            nifti_img = niftiread(nifti_header);
+            nifti_img = imrotate3(nifti_img, 270, [0, 0, 1]);
+            % may or may not be necessary to flip the image
+            nifti_img = imrotate3(nifti_img, 180, [0, 1, 0]);
     
-    montage_name = [montage_name_beg '_' num2str(i) '.png'];
-    image_out = fullfile(out_folder, montage_name);
+            montage_name = [montage_name_beg '_' num2str(i) '.png'];
+            image_out = fullfile(out_folder, montage_name);
     
-    montage_handle = montage(nifti_img, 'DisplayRange', contrast);
-    
-    while true
-        c = waitforbuttonpress;
-        if c == 1
-            key = get(gcf, 'currentCharacter');
-            switch key
-                case 99 %'c'
-                    contrastButtonPushed(montage_handle, image_out);
-                case 100 %'d' -> next image
-                    saveImageButtonPushed(image_out);
-                    break
-                case 115 %'s' -> save image
-                    saveImageButtonPushed(image_out);
-            end
-        end
+            montage_handle = montage(nifti_img, 'DisplayRange', contrast);
+            set(gcf, 'NumberTItle', 'off', 'Name', montage_name);
+            movegui(gcf, 'center');
     end
+    
+    i = getKeyboardInput(i, montage_handle, image_out);
     %set(gcf, 'KeyPressFcn', ...
         %@(s, e) contrastButtonPushed(montage_handle, image_out, e));
     %figure(1); montage_img = (get(montage_handle, 'CData'));
@@ -69,8 +64,31 @@ end
          'window max edit'), 'String'));
      assignin('base', 'contrast', [window_min, window_max]);
      delete(handle);
-end
+ end
 
+ function res = getKeyboardInput(i, montage_handle, image_out)
+    res = i;
+    while true
+        c = waitforbuttonpress;
+        if c == 1 % keyboard pressed
+        key = get(gcf, 'currentCharacter');
+            switch key
+                case 97 %'a' -> last image
+                    saveImageButtonPushed(image_out);
+                    res = i - 1;
+                    break
+                case 99 %'c'
+                    contrastButtonPushed(montage_handle, image_out);
+                case 100 %'d' -> next image
+                    saveImageButtonPushed(image_out);
+                    res = i + 1;
+                    break
+                case 115 %'s' -> save image
+                    saveImageButtonPushed(image_out);
+            end
+        end
+    end
+end
 %header = niftiinfo(img_path);
 %my_nifti = niftiread(header);
 
