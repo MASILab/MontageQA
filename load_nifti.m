@@ -4,45 +4,33 @@ img_path = '/nfs/masi/clineci/CQS_TBI/DICOMS/SESSION20070506CQS_TBI10671/SCANS/2
 csv_path = '/nfs/masi/clineci/CQS_TBI/dataList/preprocessList.csv';
 
 % path where the montage is saved
-out_folder = pwd;
-montage_name_beg = 'test_montage';
+out_folder = 'montage';
+%montage_name_beg = 'test_montage';
 
-image_path_list = readtable(csv_path, 'HeaderLine', 1);
+image_path_list = readtable(csv_path, 'HeaderLines', 1);
 num_rows = height(image_path_list);
 score_list = image_path_list.(2);
 image_path_list = image_path_list.(1);
 
-contrast = [0, 40];
+contrast = [1005, 1115];
 i = 1;
+prev_i = 0;
 
 addpath(masimatlab_path);
 
+while score_list(i) == 9
+    i = i + 1;
+end
+
 while i <= num_rows
-    if i > num_rows
-        i = num_rows;
-    elseif i < 1
-            i = 1;
-    else
-            path_cell = image_path_list(i);
-            nifti_path = path_cell{1};
-            nifti_header = niftiinfo(nifti_path);
-            nifti_img = niftiread(nifti_header);
-            nifti_img = imrotate3(nifti_img, 270, [0, 0, 1]);
-            % may or may not be necessary to flip the image
-            nifti_img = imrotate3(nifti_img, 180, [0, 1, 0]);
-    
-            montage_name = [montage_name_beg '_' num2str(i) '.png'];
-            image_out = fullfile(out_folder, montage_name);
-    
-            montage_handle = montage(nifti_img, 'DisplayRange', contrast);
-            set(gcf, 'NumberTItle', 'off', 'Name', montage_name);
-            movegui(gcf, 'center');
+    if prev_i ~= i
+        path_cell = image_path_list(i);
+        nifti_path = path_cell{1};
+        res = makeMontage(nifti_path, out_folder, i, contrast);
     end
     
-    i = getKeyboardInput(i, montage_handle, image_out);
-    %set(gcf, 'KeyPressFcn', ...
-        %@(s, e) contrastButtonPushed(montage_handle, image_out, e));
-    %figure(1); montage_img = (get(montage_handle, 'CData'));
+    prev_i = i;
+    i = getKeyboardInput(i, res, score_list, num_rows);
 end
 
 function saveImageButtonPushed(image_out)
@@ -66,8 +54,32 @@ end
      delete(handle);
  end
 
- function res = getKeyboardInput(i, montage_handle, image_out)
-    res = i;
+ function res = makeMontage(nifti_path, ...
+     out_folder, i, contrast)
+    nifti_path = strrep(nifti_path, 'preprocessed', 'nifti');
+            
+    nifti_header = niftiinfo(nifti_path);
+    nifti_img = niftiread(nifti_header);
+    nifti_img = imrotate3(nifti_img, 270, [0, 0, 1]);
+    % may or may not be necessary to flip the image
+    nifti_img = imrotate3(nifti_img, 180, [0, 1, 0]);
+    
+    montage_name = ['test_montage_' num2str(i) '.png'];
+    image_out = fullfile(out_folder, montage_name);
+    
+    montage_handle = montage(nifti_img, 'DisplayRange', contrast);
+    set(gcf, 'NumberTItle', 'off', 'Name', montage_name);
+    movegui(gcf, 'center');
+    res = {montage_handle, image_out};
+ end
+ 
+ function index = getKeyboardInput(i, res, score_list, num_rows)
+    montage_handle = res(1);
+    montage_handle = montage_handle{1};
+    image_out = res(2);
+    image_out = image_out{1};
+    
+    index = i;
     while true
         c = waitforbuttonpress;
         if c == 1 % keyboard pressed
@@ -75,23 +87,32 @@ end
             switch key
                 case 97 %'a' -> last image
                     saveImageButtonPushed(image_out);
-                    res = i - 1;
+                    index = index - 1;
+                    % keep skipping bad images
+                    while index >= 1 && score_list(index) == 9
+                        index = index - 1;
+                    end
+                    if index < 1
+                        index = i;
+                    end
                     break
                 case 99 %'c'
                     contrastButtonPushed(montage_handle, image_out);
                 case 100 %'d' -> next image
                     saveImageButtonPushed(image_out);
-                    res = i + 1;
+                    index = index + 1;
+                    % keep skipping bad images
+                    while index <= num_rows && score_list(index) == 9
+                        index = index + 1;
+                    end
+                    if index > num_rows
+                        index = i;
+                    end
                     break
                 case 115 %'s' -> save image
                     saveImageButtonPushed(image_out);
             end
         end
     end
-end
-%header = niftiinfo(img_path);
-%my_nifti = niftiread(header);
-
-%fprintf('Nifti dimensions: %d x %d x %d\n', header.PixelDimensions); % look at the volume dimensions (my_nifti.hdr is the header)
-
+ end
 
