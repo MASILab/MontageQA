@@ -76,6 +76,8 @@ function writeButtonPushed(i, current_label)
     labels(i, :) = current_label;
     %writematrix(labels, 'testLabels.csv');
     writetable(table(image_path_list, labels), 'testLabels.csv');
+    fprintf('wrote: [T: %d G: %d B: %d]\n', current_label(1), ...
+        current_label(2), current_label(3));
     assignin('base', 'labels', labels);
 end
  
