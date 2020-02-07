@@ -1,4 +1,5 @@
 %% Simple script that opens a nifti & views a slice
+%function []=load_nifti(arg1, arg2)
 masimatlab_path = '/nfs/share5/clineci/software/masimatlab-utils/'; % replace this with your path
 img_path = '/nfs/masi/clineci/CQS_TBI/DICOMS/SESSION20070506CQS_TBI10671/SCANS/2/nifti/DICOM_NEURO_T-GRAM_Head_20070623170028_2_Tilt_1.nii.gz';
 csv_path = '/nfs/masi/clineci/CQS_TBI/dataList/preprocessList.csv';
@@ -7,6 +8,7 @@ addpath(masimatlab_path);
 
 % path where the montage is saved
 out_folder = 'montage';
+label_folder = 'labels';
 
 image_path_table = readtable(csv_path, 'HeaderLines', 1);
 num_rows = height(image_path_table);
@@ -14,6 +16,17 @@ score_list = image_path_table.(2);
 image_path_table = image_path_table.(1);
 image_path_list = strings(num_rows, 1);
 
+label_file = ['labels_', datestr(now), '.csv'];
+label_file = fullfile(label_folder, label_file);
+
+% TODO: remember i from last time
+% c: continue from the last session: save the path to the last session
+% in a file once the script starts
+% i #num: contine the last session i = #num
+% n/no args: start a new sessoin
+% else report an error
+
+% i = 220 last time
 for i = 1:num_rows
     path_cell = image_path_table(i);
     image_path_list(i) = path_cell{1};
@@ -35,7 +48,7 @@ while i <= num_rows
     end
     
     prev_i = i;
-    i = getKeyboardInput(i, res, score_list, num_rows, labels);
+    i = getKeyboardInput(i, res, score_list, num_rows, labels, label_file);
 end
 
 function saveImageButtonPushed(image_out)
@@ -70,12 +83,20 @@ function current_label = labelButtonPushed(col, current_label)
         current_label(2), current_label(3));
 end
 
-function writeButtonPushed(i, current_label)
+function writeButtonPushed(i, current_label, label_file)
     labels = evalin('base', 'labels');
     image_path_list = evalin('base', 'image_path_list');
     labels(i, :) = current_label;
-    %writematrix(labels, 'testLabels.csv');
-    writetable(table(image_path_list, labels), 'testLabels.csv');
+        
+    tmp = table(image_path_list, labels(:,1), labels(:,2), labels(:,3), ...
+        'VariableNames', {'image path', 'taken out', 'grainy', 'broken',});
+    writetable(tmp, label_file);
+    % save i for the next session
+    fid = fopen('i.info', 'w+');
+    fprintf(fid, '%s\n', label_file);
+    fprintf(fid, '%d\n', i);
+    fclose(fid);
+    
     fprintf('wrote: [T: %d G: %d B: %d]\n', current_label(1), ...
         current_label(2), current_label(3));
     assignin('base', 'labels', labels);
@@ -107,7 +128,7 @@ function res = makeMontage(nifti_path, ...
 end
  
 function index = getKeyboardInput(i, res, score_list, ...
-    num_rows, labels)
+    num_rows, labels, label_file)
     montage_handle = res(1);
     montage_handle = montage_handle{1};
     image_out = res(2);
@@ -122,7 +143,7 @@ function index = getKeyboardInput(i, res, score_list, ...
         key = get(gcf, 'currentCharacter');
             switch key
                 case 97 %'a' -> previous image
-                    writeButtonPushed(i, current_label);
+                    writeButtonPushed(i, current_label, label_file);
                     index = index - 1;
                     % keep skipping bad images
                     while index >= 1 && score_list(index) == 9
@@ -135,7 +156,7 @@ function index = getKeyboardInput(i, res, score_list, ...
                 case 99 %'c'
                     contrastButtonPushed(montage_handle, image_out);
                 case 100 %'d' -> next image
-                    writeButtonPushed(i, current_label);
+                    writeButtonPushed(i, current_label, label_file);
                     index = index + 1;
                     % keep skipping bad images
                     while index <= num_rows && score_list(index) == 9
@@ -154,9 +175,10 @@ function index = getKeyboardInput(i, res, score_list, ...
                 case 98  %'b' -> label: skull broken
                     current_label = labelButtonPushed(3, current_label);
                 case 119 %'w' -> write label
-                    writeButtonPushed(i, current_label);
+                    writeButtonPushed(i, current_label, label_file);
             end
         end
     end
 end
+%end
 
