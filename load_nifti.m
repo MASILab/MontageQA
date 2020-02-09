@@ -1,7 +1,5 @@
 %% Simple script that opens a nifti & views a slice
-%function []=load_nifti(arg1, arg2)
 masimatlab_path = '/nfs/share5/clineci/software/masimatlab-utils/'; % replace this with your path
-img_path = '/nfs/masi/clineci/CQS_TBI/DICOMS/SESSION20070506CQS_TBI10671/SCANS/2/nifti/DICOM_NEURO_T-GRAM_Head_20070623170028_2_Tilt_1.nii.gz';
 csv_path = '/nfs/masi/clineci/CQS_TBI/dataList/preprocessList.csv';
 
 addpath(masimatlab_path);
@@ -13,29 +11,36 @@ label_folder = 'labels';
 image_path_table = readtable(csv_path, 'HeaderLines', 1);
 num_rows = height(image_path_table);
 score_list = image_path_table.(2);
-image_path_table = image_path_table.(1);
-image_path_list = strings(num_rows, 1);
+image_path_table = cell2table(image_path_table.(1));
+image_path_list = table2array(image_path_table);
 
 label_file = ['labels_', datestr(now), '.csv'];
 label_file = fullfile(label_folder, label_file);
 
-% TODO: remember i from last time
-% c: continue from the last session: save the path to the last session
-% in a file once the script starts
-% i #num: contine the last session i = #num
-% n/no args: start a new sessoin
-% else report an error
+%i = 220 last time
 
-% i = 220 last time
-for i = 1:num_rows
-    path_cell = image_path_table(i);
-    image_path_list(i) = path_cell{1};
+prompt = 'Continue from the last sessoin? (y/n) Enter q to quit.\n';
+arg1 = input(prompt, 's');
+while arg1 ~= 'y' && arg1 ~= 'n' && arg1 ~= 'q'
+    fprintf('Enter y or n. Enter q to quit.\n');
+    arg1 = input(prompt, 's');
 end
 
-contrast = [1005, 1115];
-labels = zeros(num_rows, 3) - 1;
-i = 1;
+if arg1 == 'y'
+    fid = fopen('i.info', 'r');
+    label_table_path = fgetl(fid);
+    labels = readLabelTable(label_table_path);
+    i = str2double(fgetl(fid));
+    fclose(fid);
+elseif arg1 == 'n'
+    labels = zeros(num_rows, 3) - 1;
+    i = 1;
+elseif arg1 == 'q'
+    return;
+end
+
 prev_i = 0;
+contrast = [1005, 1115];
 
 while score_list(i) == 9
     i = i + 1;
@@ -43,12 +48,18 @@ end
 
 while i <= num_rows
     if prev_i ~= i
-        nifti_path = image_path_list(i);
+        nifti_path = cell2mat(image_path_list(i));
         res = makeMontage(nifti_path, out_folder, i, contrast, labels);
     end
     
     prev_i = i;
     i = getKeyboardInput(i, res, score_list, num_rows, labels, label_file);
+end
+
+function labels = readLabelTable(label_table_path)
+    label_table = readtable(label_table_path, 'HeaderLines', 1);
+    label_table = label_table(:,2:width(label_table));
+    labels = table2array(label_table);
 end
 
 function saveImageButtonPushed(image_out)
@@ -180,5 +191,3 @@ function index = getKeyboardInput(i, res, score_list, ...
         end
     end
 end
-%end
-
