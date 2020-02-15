@@ -1,6 +1,6 @@
-%% Simple script that opens a nifti & views a slice
+%% MASILab - HEAD CCT Montage QA Tool
 masimatlab_path = '/nfs/share5/clineci/software/masimatlab-utils/'; % replace this with your path
-csv_path = '/nfs/masi/clineci/CQS_TBI/dataList/preprocessList.csv';
+csv_path = '/nfs/masi/clineci/CQS_TBI/dataList/preprocessList.csv'; % replace this with your csv file path
 
 addpath(masimatlab_path);
 
@@ -17,9 +17,7 @@ image_path_list = table2array(image_path_table);
 label_file = ['labels_', datestr(now), '.csv'];
 label_file = fullfile(label_folder, label_file);
 
-%i = 220 last time
-
-prompt = 'Continue from the last sessoin? (y/n) Enter q to quit.\n';
+prompt = 'Continue from last sessoin? (y/n) Enter q to quit.\n';
 arg1 = input(prompt, 's');
 while arg1 ~= 'y' && arg1 ~= 'n' && arg1 ~= 'q'
     fprintf('Enter y or n. Enter q to quit.\n');
@@ -117,11 +115,9 @@ function res = makeMontage(nifti_path, ...
     out_folder, i, contrast, labels)
     nifti_path = strrep(nifti_path, 'preprocessed', 'nifti');
             
-    nifti_header = niftiinfo(nifti_path);
-    nifti_img = niftiread(nifti_header);
+    %nifti_header = niftiinfo(nifti_path);
+    nifti_img = niftiread(nifti_path);
     nifti_img = imrotate3(nifti_img, 270, [0, 0, 1]);
-    % may or may not be necessary to flip the image
-    nifti_img = imrotate3(nifti_img, 180, [0, 1, 0]);
     
     montage_name = ['test_montage_' num2str(i) '.png'];
     image_out = fullfile(out_folder, montage_name);
