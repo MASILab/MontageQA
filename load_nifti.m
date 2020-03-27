@@ -1,6 +1,7 @@
 %% MASILab - HEAD CCT Montage QA Tool
 masimatlab_path = '/nfs/share5/clineci/software/masimatlab-utils/'; % replace this with your path
-csv_path = '/nfs/masi/clineci/CQS_TBI/dataList/preprocessList.csv'; % replace this with your csv file path
+%csv_path = '/nfs/masi/clineci/CQS_TBI/dataList/preprocessList.csv'; % replace this with your csv file path
+csv_path = '/home/local/VANDERBILT/yuc8/Documents/MontageQA/preprocessed_scans.csv';
 
 addpath(masimatlab_path);
 
@@ -8,7 +9,7 @@ addpath(masimatlab_path);
 out_folder = 'montage';
 label_folder = 'labels';
 
-image_path_table = readtable(csv_path, 'HeaderLines', 1);
+image_path_table = readtable(csv_path, 'HeaderLines', 1, 'Delimiter', ',');
 num_rows = height(image_path_table);
 score_list = image_path_table.(2);
 image_path_table = cell2table(image_path_table.(1));
@@ -38,7 +39,7 @@ elseif arg1 == 'q'
 end
 
 prev_i = 0;
-contrast = [1005, 1115];
+contrast = [-10, 80];
 
 while score_list(i) == 9
     i = i + 1;
@@ -51,19 +52,22 @@ while i <= num_rows
     end
     
     prev_i = i;
-    i = getKeyboardInput(i, res, score_list, num_rows, labels, label_file);
+    i = getKeyboardInput(i, res, score_list, num_rows, labels, ...
+        label_file, nifti_path);
 end
 
 function labels = readLabelTable(label_table_path)
-    label_table = readtable(label_table_path, 'HeaderLines', 1);
+    label_table = readtable(label_table_path, 'HeaderLines', 1, ...
+        'Delimiter', ',');
     label_table = label_table(:,2:width(label_table));
     labels = table2array(label_table);
 end
 
 function saveImageButtonPushed(image_out)
-    current_frame = getframe(gca);
+    current_frame = getframe(gcf);
     montage_uint16 = im2uint16(current_frame.cdata);
     imwrite(montage_uint16, image_out);
+    fprintf("image save successful.\n");
 end
 
 function contrastButtonPushed(montage_handle, ~)
@@ -119,11 +123,13 @@ function res = makeMontage(nifti_path, ...
     nifti_img = niftiread(nifti_path);
     nifti_img = imrotate3(nifti_img, 270, [0, 0, 1]);
     
-    montage_name = ['test_montage_' num2str(i) '.png'];
+    montage_name = [nifti_path '.png'];
+    montage_name = strrep(montage_name, '/', '+');
     image_out = fullfile(out_folder, montage_name);
-    
+
     montage_handle = montage(nifti_img, 'DisplayRange', contrast);
-    set(gcf, 'NumberTItle', 'off', 'Name', montage_name);
+    title = ['Montage #' num2str(i)];
+    set(gcf, 'NumberTItle', 'off', 'Name', title);
     movegui(gcf, 'center');
     
     if labels(i,1) == -1
@@ -135,7 +141,7 @@ function res = makeMontage(nifti_path, ...
 end
  
 function index = getKeyboardInput(i, res, score_list, ...
-    num_rows, labels, label_file)
+    num_rows, labels, label_file, nifti_path)
     montage_handle = res(1);
     montage_handle = montage_handle{1};
     image_out = res(2);
@@ -151,6 +157,7 @@ function index = getKeyboardInput(i, res, score_list, ...
             switch key
                 case 97 %'a' -> previous image
                     writeButtonPushed(i, current_label, label_file);
+                    saveImageButtonPushed(image_out);
                     index = index - 1;
                     % keep skipping bad images
                     while index >= 1 && score_list(index) == 9
@@ -164,6 +171,7 @@ function index = getKeyboardInput(i, res, score_list, ...
                     contrastButtonPushed(montage_handle, image_out);
                 case 100 %'d' -> next image
                     writeButtonPushed(i, current_label, label_file);
+                    saveImageButtonPushed(image_out);
                     index = index + 1;
                     % keep skipping bad images
                     while index <= num_rows && score_list(index) == 9
@@ -181,6 +189,9 @@ function index = getKeyboardInput(i, res, score_list, ...
                     current_label = labelButtonPushed(2, current_label);
                 case 98  %'b' -> label: skull broken
                     current_label = labelButtonPushed(3, current_label);
+                case 105 %'i' -> get image info
+                    fprintf('index(i): %d\n', i);
+                    fprintf('path: %s\n', nifti_path);
                 case 119 %'w' -> write label
                     writeButtonPushed(i, current_label, label_file);
             end
