@@ -20,5 +20,16 @@ A simple python GUI for labeling montages of nifti images. Written with [tkinter
   
 6. Run `label_montages.py`. The application autosaves your progress every 10 seconds. Labels will be stored in `./MontageQA/labels` as a `.csv` file.
   
+## Note
+You may want to change this line in `./utils/utils.py`:
+```python
+img_file_name = self.table["image path"][self.idx].replace('/', '+')
+```
+and this line in `label_montages.py`:
+```python
+test_file_name = test_file_name.replace('/', '+') + '.png'
+```
+depending on your naming convention when you generate your montages:
+  
 ## TODO
 Get rid of the extra column when writting pandas dataframe to a `.csv` file. 
