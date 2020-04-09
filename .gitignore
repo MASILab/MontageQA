@@ -1,0 +1,7 @@
+*.csv
+/.idea/
+*.zip
+/images/
+/labels/
+
+
